@@ -1,0 +1,46 @@
+# Stage 1: Build
+FROM node:20-alpine AS builder
+RUN npm install -g pnpm@10.33.2
+
+WORKDIR /app
+
+# Copy configuration and workspaces manifest
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml* turbo.json ./
+COPY packages/config/package.json ./packages/config/
+COPY packages/shared/package.json ./packages/shared/
+COPY packages/ui/package.json ./packages/ui/
+COPY apps/api/package.json ./apps/api/
+
+# Install dependencies (only what's needed for the workspace)
+RUN pnpm install --frozen-lockfile --filter @bexo/api... --filter @bexo/shared...
+
+# Copy all source files
+COPY packages/ ./packages/
+COPY apps/api/ ./apps/api/
+
+# Build shared package and api
+RUN pnpm run build --filter @bexo/shared --filter @bexo/api
+
+# Stage 2: Runner
+FROM node:20-alpine AS runner
+RUN npm install -g pnpm@10.33.2
+
+WORKDIR /app
+
+# Copy configuration and workspaces manifest
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml* ./
+COPY packages/config/package.json ./packages/config/
+COPY packages/shared/package.json ./packages/shared/
+COPY apps/api/package.json ./apps/api/
+
+# Install prod dependencies only
+RUN pnpm install --prod --frozen-lockfile --filter @bexo/api... --filter @bexo/shared...
+
+# Copy build artifacts
+COPY --from=builder /app/packages/shared/dist ./packages/shared/dist
+COPY --from=builder /app/apps/api/dist ./apps/api/dist
+
+EXPOSE 3000
+ENV NODE_ENV=production
+
+CMD ["node", "apps/api/dist/main"]

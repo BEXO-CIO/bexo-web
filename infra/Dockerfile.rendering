@@ -1,0 +1,46 @@
+# Stage 1: Build
+FROM node:20-alpine AS builder
+RUN npm install -g pnpm@10.33.2
+
+WORKDIR /app
+
+# Copy configuration and workspaces manifest
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml* turbo.json ./
+COPY packages/config/package.json ./packages/config/
+COPY packages/shared/package.json ./packages/shared/
+COPY apps/rendering/package.json ./apps/rendering/
+
+# Install dependencies
+RUN pnpm install --frozen-lockfile --filter @bexo/rendering... --filter @bexo/shared...
+
+# Copy source
+COPY packages/ ./packages/
+COPY apps/rendering/ ./apps/rendering/
+
+# Build shared package and rendering app
+RUN pnpm run build --filter @bexo/shared --filter @bexo/rendering
+
+# Stage 2: Runner
+FROM node:20-alpine AS runner
+RUN npm install -g pnpm@10.33.2
+
+WORKDIR /app
+
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml* ./
+COPY packages/config/package.json ./packages/config/
+COPY packages/shared/package.json ./packages/shared/
+COPY apps/rendering/package.json ./apps/rendering/
+
+# Install production dependencies
+RUN pnpm install --prod --frozen-lockfile --filter @bexo/rendering... --filter @bexo/shared...
+
+# Copy build artifacts
+COPY --from=builder /app/packages/shared/dist ./packages/shared/dist
+COPY --from=builder /app/apps/rendering/.next ./apps/rendering/.next
+COPY --from=builder /app/apps/rendering/public* ./apps/rendering/public
+
+EXPOSE 3000
+ENV NODE_ENV=production
+ENV PORT=3000
+
+CMD ["pnpm", "--filter", "@bexo/rendering", "start"]

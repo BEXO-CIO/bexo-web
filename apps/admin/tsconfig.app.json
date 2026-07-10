@@ -1,0 +1,11 @@
+{
+  "extends": "@bexo/config/tsconfig.base.json",
+  "compilerOptions": {
+    "types": ["vite/client"],
+    "allowArbitraryExtensions": true,
+    "allowImportingTsExtensions": true,
+    "noEmit": true,
+    "jsx": "react-jsx"
+  },
+  "include": ["src"]
+}
