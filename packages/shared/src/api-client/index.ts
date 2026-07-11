@@ -157,10 +157,14 @@ export class BexoApiClient {
   }
 
   // --- Portfolio & Publishing ---
-  async publishPortfolio(data: { handle: string; selected_template_id: string; selected_theme_id: string }): Promise<{ success: boolean; portfolio: Portfolio }> {
+  async getPortfolio(): Promise<{ portfolio: Portfolio | null }> {
+    return this.request<{ portfolio: Portfolio | null }>("/portfolio");
+  }
+
+  async publishPortfolio(data?: { handle?: string; selected_template_id?: string; selected_theme_id?: string | null }): Promise<{ success: boolean; portfolio: Portfolio }> {
     return this.request<{ success: boolean; portfolio: Portfolio }>("/portfolio/publish", {
       method: "POST",
-      body: JSON.stringify(data),
+      body: JSON.stringify(data || {}),
     });
   }
 

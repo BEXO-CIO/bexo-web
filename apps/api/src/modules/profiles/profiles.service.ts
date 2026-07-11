@@ -151,4 +151,100 @@ export class ProfilesService {
     const profile = await this.getProfileByUserId(userId);
     return { score: profile.completion_pct };
   }
+
+  /**
+   * Fetches the user's portfolio configuration row (or returns null if none exists).
+   */
+  async getPortfolioByUserId(userId: string) {
+    const res = await this.db.query('SELECT * FROM portfolios WHERE user_id = $1;', [userId]);
+    return res.rows.length > 0 ? res.rows[0] : null;
+  }
+
+  async publishPortfolio(userId: string, data?: { handle?: string; selected_template_id?: string; selected_theme_id?: string | null }) {
+    // 1. Get existing portfolio
+    const existCheck = await this.db.query('SELECT * FROM portfolios WHERE user_id = $1;', [userId]);
+    
+    let handle = data?.handle?.trim().toLowerCase();
+    let templateId = data?.selected_template_id;
+    let themeId = data?.selected_theme_id;
+
+    if (existCheck.rows.length > 0) {
+      const existing = existCheck.rows[0];
+      if (!handle) handle = existing.handle;
+      if (!templateId) templateId = existing.selected_template_id || 'editorial';
+      if (!themeId) themeId = existing.selected_theme_id;
+    }
+
+    // 2. Generate slug if handle is empty
+    if (!handle) {
+      const userRes = await this.db.query('SELECT name FROM users WHERE id = $1;', [userId]);
+      const name = userRes.rows[0]?.name;
+      if (name) {
+        handle = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+      }
+      if (!handle || handle.length < 3) {
+        handle = `user-${userId.substring(0, 8)}`;
+      }
+
+      // Ensure uniqueness
+      let uniqueHandle = handle;
+      let suffix = 1;
+      while (true) {
+        const taken = await this.db.query('SELECT id FROM portfolios WHERE handle = $1 AND user_id != $2;', [uniqueHandle, userId]);
+        if (taken.rows.length === 0) {
+          handle = uniqueHandle;
+          break;
+        }
+        uniqueHandle = `${handle}-${suffix++}`;
+      }
+    } else {
+      // Validate provided handle
+      if (!/^[a-z0-9-]+$/.test(handle)) {
+        throw new BadRequestException('Handle can only contain lowercase letters, numbers, and hyphens.');
+      }
+      if (handle.length < 3 || handle.length > 50) {
+        throw new BadRequestException('Handle must be between 3 and 50 characters.');
+      }
+
+      // Check if taken
+      const takenCheck = await this.db.query(
+        'SELECT user_id FROM portfolios WHERE handle = $1 AND user_id != $2;',
+        [handle, userId]
+      );
+      if (takenCheck.rows.length > 0) {
+        throw new BadRequestException('This portfolio handle is already taken by another user.');
+      }
+    }
+
+    if (!templateId) {
+      templateId = 'editorial';
+    }
+
+    const now = new Date();
+    let portfolioRow;
+
+    if (existCheck.rows.length > 0) {
+      const res = await this.db.query(
+        `UPDATE portfolios 
+         SET handle = $1, selected_template_id = $2, selected_theme_id = $3, is_published = true, published_at = $4
+         WHERE user_id = $5 
+         RETURNING *;`,
+        [handle, templateId, themeId || null, now, userId]
+      );
+      portfolioRow = res.rows[0];
+    } else {
+      const res = await this.db.query(
+        `INSERT INTO portfolios (user_id, handle, selected_template_id, selected_theme_id, is_published, published_at)
+         VALUES ($1, $2, $3, $4, true, $5) 
+         RETURNING *;`,
+        [userId, handle, templateId, themeId || null, now]
+      );
+      portfolioRow = res.rows[0];
+    }
+
+    return {
+      success: true,
+      portfolio: portfolioRow,
+    };
+  }
 }
