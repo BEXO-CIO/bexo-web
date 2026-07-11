@@ -7,6 +7,6 @@ async function bootstrap() {
   const cookieParserFn = (cookieParser as any).default || cookieParser;
   app.use(cookieParserFn());
   app.setGlobalPrefix('api/v1');
-  await app.listen(process.env.PORT ?? 3000);
+  await app.listen(process.env.PORT ?? 5001);
 }
 bootstrap();
