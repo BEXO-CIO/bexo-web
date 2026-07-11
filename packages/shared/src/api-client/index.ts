@@ -168,6 +168,10 @@ export class BexoApiClient {
     });
   }
 
+  async getSubscriptionStatus(): Promise<{ active: boolean; subscription: any }> {
+    return this.request<{ active: boolean; subscription: any }>("/billing/status");
+  }
+
   // --- Admin Module ---
   async adminSearchUsers(query: string = '', page: number = 1, limit: number = 10): Promise<{
     users: any[];

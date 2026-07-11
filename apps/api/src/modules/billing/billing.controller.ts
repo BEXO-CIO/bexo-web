@@ -1,10 +1,17 @@
-import { Controller, Post, Body, Req, UseGuards, BadRequestException, HttpCode, HttpStatus } from '@nestjs/common';
+import { Controller, Get, Post, Body, Req, UseGuards, BadRequestException, HttpCode, HttpStatus } from '@nestjs/common';
 import { BillingService } from './billing.service';
 import { JwtGuard } from '../auth/jwt.guard';
 
 @Controller('billing')
 export class BillingController {
   constructor(private readonly billingService: BillingService) {}
+
+  @Get('status')
+  @UseGuards(JwtGuard)
+  async getStatus(@Req() request: any) {
+    const userId = request.user.userId;
+    return this.billingService.getSubscriptionStatus(userId);
+  }
 
   @Post('checkout')
   @UseGuards(JwtGuard)
@@ -18,6 +25,21 @@ export class BillingController {
       throw new BadRequestException("Invalid plan selection. Choose either 'annual' or 'lifetime'.");
     }
     return this.billingService.createCheckoutOrder(userId, plan);
+  }
+
+  @Post('dev-confirm')
+  @UseGuards(JwtGuard)
+  @HttpCode(HttpStatus.OK)
+  async devConfirm(@Req() request: any) {
+    const userId = request.user.userId;
+    // Simple direct update for local dev convenience
+    await this.billingService.db.query(
+      `INSERT INTO subscriptions (user_id, source, plan, status, expires_at)
+       VALUES ($1, 'purchase', 'annual', 'active', CURRENT_TIMESTAMP + INTERVAL '1 year')
+       ON CONFLICT (user_id) DO UPDATE SET status = 'active', expires_at = CURRENT_TIMESTAMP + INTERVAL '1 year';`,
+      [userId]
+    );
+    return { success: true };
   }
 
   @Post('webhook')

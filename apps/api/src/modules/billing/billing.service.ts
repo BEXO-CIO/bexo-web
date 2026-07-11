@@ -8,7 +8,7 @@ export class BillingService {
   private razorpay: Razorpay;
   private webhookSecret: string;
 
-  constructor(private readonly db: DbService) {
+  constructor(public readonly db: DbService) {
     this.webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET || 'bexo_webhook_secret_2026';
     
     this.razorpay = new Razorpay({
@@ -136,5 +136,20 @@ export class BillingService {
       [userId]
     );
     return { success: true };
+  }
+
+  async getSubscriptionStatus(userId: string) {
+    const res = await this.db.query(
+      `SELECT * FROM subscriptions 
+       WHERE user_id = $1 
+         AND status = 'active' 
+         AND (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP) 
+       LIMIT 1;`,
+      [userId]
+    );
+    return {
+      active: res.rows.length > 0,
+      subscription: res.rows.length > 0 ? res.rows[0] : null,
+    };
   }
 }
