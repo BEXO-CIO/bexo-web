@@ -11,7 +11,6 @@ export function middleware(request: NextRequest) {
     pathname.startsWith('/_next') ||
     pathname.startsWith('/static') ||
     pathname.startsWith('/api') ||
-    pathname.startsWith('/p/') ||
     pathname.startsWith('/preview/') ||
     pathname.includes('.')
   ) {

@@ -17,8 +17,8 @@ async function runSeed() {
     console.log('Seeding templates...');
     const templates = [
       { id: 'minimal', name: 'Minimalist Portfolio', version: '1.0.0', thumbnail_url: 'https://cdn.mybexo.com/templates/minimal.png', tier: 'free' },
-      { id: 'editorial', name: 'Editorial Portfolio', version: '1.0.0', thumbnail_url: 'https://cdn.mybexo.com/templates/editorial.png', tier: 'free' },
-      { id: 'bold', name: 'Bold Portfolio', version: '1.0.0', thumbnail_url: 'https://cdn.mybexo.com/templates/bold.png', tier: 'paid' },
+      { id: 'academic', name: 'Academic Portfolio', version: '1.0.0', thumbnail_url: 'https://cdn.mybexo.com/templates/academic.png', tier: 'free' },
+      { id: 'creative', name: 'Creative Portfolio', version: '1.0.0', thumbnail_url: 'https://cdn.mybexo.com/templates/creative.png', tier: 'paid' },
     ];
 
     for (const t of templates) {
@@ -47,11 +47,19 @@ async function runSeed() {
         }
       },
       {
-        template_id: 'editorial',
+        template_id: 'academic',
         name: 'Warm Ivory',
         tokens: {
           colors: { primary: '#D97706', background: '#FFFDF9', text: '#27272A' },
           fonts: { heading: 'Lora', body: 'PT Serif' }
+        }
+      },
+      {
+        template_id: 'creative',
+        name: 'Vibrant Neon',
+        tokens: {
+          colors: { primary: '#C1440E', background: '#0F172A', text: '#F1F5F9' },
+          fonts: { heading: 'Playfair Display', body: 'Inter' }
         }
       }
     ];

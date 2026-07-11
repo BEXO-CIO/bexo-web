@@ -22,7 +22,13 @@ export default function Step9Publish() {
         setError('');
 
         // 1. Trigger backend publishing
-        const publishRes = await client.publishPortfolio();
+        const savedTemplateId = localStorage.getItem('bexo_selected_template_id');
+        const savedThemeId = localStorage.getItem('bexo_selected_theme_id');
+
+        const publishRes = await client.publishPortfolio({
+          selected_template_id: savedTemplateId || undefined,
+          selected_theme_id: savedThemeId || undefined,
+        });
         if (publishRes && publishRes.portfolio) {
           setHandle(publishRes.portfolio.handle);
         }
@@ -63,7 +69,7 @@ export default function Step9Publish() {
   }, []);
 
   const profileUrl = handle ? `${handle}.mybexo.com` : 'loading...';
-  const renderUrl = handle ? `http://localhost:3000/p/${handle}` : '#';
+  const renderUrl = handle ? `http://localhost:3000/${handle}` : '#';
 
   const handleCopy = async () => {
     if (!handle) return;

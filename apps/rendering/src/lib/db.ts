@@ -143,7 +143,7 @@ async function buildPortfolioPayload(
 
 /**
  * Fetch a published portfolio by its public handle.
- * Used by /p/[handle] and the subdomain [handle] route.
+ * Used by /[handle] and the subdomain [handle] route.
  * Results are cached in Redis for 10 minutes.
  */
 export async function getPortfolioData(handle: string): Promise<PortfolioData | null> {
