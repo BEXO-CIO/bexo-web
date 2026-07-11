@@ -1,7 +1,7 @@
 import { Client } from 'pg';
 
 async function runSeed() {
-  const databaseUrl = process.env.DATABASE_URL || 'postgresql://localhost:5432/bexo';
+  const databaseUrl = process.env.DATABASE_URL || 'postgresql://localhost:5432/bexo_dev';
   console.log('Seeding database:', databaseUrl.split('@')[1] || 'localhost');
 
   const client = new Client({

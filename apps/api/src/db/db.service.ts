@@ -6,7 +6,7 @@ export class DbService implements OnModuleInit, OnModuleDestroy {
   private pool: Pool;
 
   onModuleInit() {
-    const databaseUrl = process.env.DATABASE_URL || 'postgresql://localhost:5432/bexo';
+    const databaseUrl = process.env.DATABASE_URL || 'postgresql://localhost:5432/bexo_dev';
     this.pool = new Pool({
       connectionString: databaseUrl,
       max: 20, // max number of clients in the pool

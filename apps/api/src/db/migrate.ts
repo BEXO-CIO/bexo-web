@@ -3,7 +3,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 async function runMigrations() {
-  const databaseUrl = process.env.DATABASE_URL || 'postgresql://localhost:5432/bexo';
+  const databaseUrl = process.env.DATABASE_URL || 'postgresql://localhost:5432/bexo_dev';
   console.log('Running migrations on:', databaseUrl.split('@')[1] || 'localhost');
 
   const client = new Client({
