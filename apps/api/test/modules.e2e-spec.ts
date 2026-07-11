@@ -31,6 +31,11 @@ describe('Wizard Modules (e2e)', () => {
     const userRes = await db.query("SELECT id FROM users WHERE phone = $1;", ['+919876543210']);
     testUserId = userRes.rows[0].id;
     
+    // Clear out stale subscription/payment state for this test user from previous runs
+    await db.query("DELETE FROM subscriptions WHERE user_id = $1;", [testUserId]);
+    await db.query("DELETE FROM payments WHERE user_id = $1;", [testUserId]);
+    await db.query("DELETE FROM audit_logs WHERE target_id = $1 OR admin_user_id = $1::uuid;", [testUserId]);
+
     const jwtSecret = process.env.JWT_SECRET || 'bexo-super-secret-jwt-key-2026';
     authToken = jwt.sign({ sub: testUserId, phone: '+919876543210' }, jwtSecret, { expiresIn: '15m' });
   });

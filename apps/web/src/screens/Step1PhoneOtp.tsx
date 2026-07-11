@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { useLocation } from 'wouter';
 import { OnboardingLayout } from '../components/OnboardingLayout';
+import { client, setAccessToken } from '../lib/api';
 
 type Phase = 'phone' | 'otp';
 
@@ -20,6 +21,7 @@ export default function Step1PhoneOtp() {
   const [otp, setOtp] = React.useState(['', '', '', '', '', '']);
   const [loading, setLoading] = React.useState(false);
   const [countdown, setCountdown] = React.useState(0);
+  const [error, setError] = React.useState('');
   const otpRefs = Array.from({ length: 6 }, () => React.useRef<HTMLInputElement>(null));
 
   React.useEffect(() => {
@@ -28,14 +30,20 @@ export default function Step1PhoneOtp() {
     return () => clearTimeout(t);
   }, [countdown]);
 
-  const handleSend = () => {
+  const handleSend = async () => {
     if (!phone.trim()) return;
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
+    setError('');
+    const fullPhone = `${country}${phone.replace(/\D/g, '')}`;
+    try {
+      await client.sendOtp(fullPhone);
       setPhase('otp');
       setCountdown(59);
-    }, 1200);
+    } catch (e: any) {
+      setError(e.message || 'Failed to send OTP code.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleOtpChange = (idx: number, val: string) => {
@@ -50,9 +58,20 @@ export default function Step1PhoneOtp() {
     if (e.key === 'Backspace' && !otp[idx] && idx > 0) otpRefs[idx - 1].current?.focus();
   };
 
-  const handleVerify = () => {
+  const handleVerify = async () => {
     setLoading(true);
-    setTimeout(() => { setLoading(false); navigate('/step/2'); }, 1000);
+    setError('');
+    const fullPhone = `${country}${phone.replace(/\D/g, '')}`;
+    const code = otp.join('');
+    try {
+      const res = await client.verifyOtp(fullPhone, code);
+      setAccessToken(res.accessToken);
+      navigate('/step/2');
+    } catch (e: any) {
+      setError(e.message || 'Invalid code submitted.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const inputBase: React.CSSProperties = {
@@ -78,6 +97,12 @@ export default function Step1PhoneOtp() {
             ? 'We\'ll send a one-time code to confirm your number.'
             : `We texted a 6-digit code to ${country} ${phone}`}
         </p>
+
+        {error && (
+          <p className="text-sm mb-4 font-medium" style={{ color: '#E11D48' }}>
+            {error}
+          </p>
+        )}
 
         {phase === 'phone' ? (
           <div className="space-y-5">

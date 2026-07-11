@@ -18,7 +18,7 @@ export class BexoApiClient {
     this.token = token;
   }
 
-  private async request<T>(path: string, options: RequestInit = {}): Promise<T> {
+  public async request<T>(path: string, options: RequestInit = {}): Promise<T> {
     const headers = new Headers(options.headers);
     if (this.token) {
       headers.set("Authorization", `Bearer ${this.token}`);
@@ -95,8 +95,8 @@ export class BexoApiClient {
     return this.request<Profile>("/profile");
   }
 
-  async patchProfile(data: Partial<Profile>): Promise<Profile> {
-    return this.request<Profile>("/profile", {
+  async patchProfile(data: { headline?: string; career_goal?: string; bio?: string; name?: string; dob?: string; profile_photo_asset_id?: string | null }): Promise<any> {
+    return this.request<any>("/profile", {
       method: "PATCH",
       body: JSON.stringify(data),
     });
@@ -138,6 +138,16 @@ export class BexoApiClient {
     });
   }
 
+  // --- Resume Parser Module ---
+  async uploadResume(file: File): Promise<{ cached: boolean; data?: any; jobId?: string }> {
+    const formData = new FormData();
+    formData.append("file", file);
+    return this.request<{ cached: boolean; data?: any; jobId?: string }>("/resume/upload", {
+      method: "POST",
+      body: formData,
+    });
+  }
+
   // --- Activation Keys ---
   async redeemActivationKey(code: string): Promise<{ success: boolean; message: string }> {
     return this.request<{ success: boolean; message: string }>("/activation/redeem", {
@@ -151,6 +161,47 @@ export class BexoApiClient {
     return this.request<{ success: boolean; portfolio: Portfolio }>("/portfolio/publish", {
       method: "POST",
       body: JSON.stringify(data),
+    });
+  }
+
+  // --- Admin Module ---
+  async adminSearchUsers(query: string = '', page: number = 1, limit: number = 10): Promise<{
+    users: any[];
+    pagination: { total: number; page: number; limit: number; pages: number };
+    metrics: {
+      totalStorageUsedBytes: number;
+      totalUsersOverall: number;
+      totalRevenueOverall: number;
+      activeAnnualSubscriptions: number;
+      activeLifetimeSubscriptions: number;
+      computedMrr: number;
+    };
+  }> {
+    return this.request<any>(`/admin/users/search?q=${encodeURIComponent(query)}&page=${page}&limit=${limit}`);
+  }
+
+  async adminImpersonate(targetUserId: string): Promise<{ token: string; user: any }> {
+    return this.request<{ token: string; user: any }>(`/admin/users/${targetUserId}/impersonate`, {
+      method: "POST",
+    });
+  }
+
+  async adminRefund(paymentId: string): Promise<{ success: boolean }> {
+    return this.request<{ success: boolean }>("/admin/billing/refund", {
+      method: "POST",
+      body: JSON.stringify({ paymentId }),
+    });
+  }
+
+  async adminListOrganizations(): Promise<any[]> {
+    return this.request<any[]>("/admin/organizations");
+  }
+
+  // --- Activation Module ---
+  async adminGenerateKeys(orgId: string, count: number): Promise<{ batchId: string; keys: string[] }> {
+    return this.request<{ batchId: string; keys: string[] }>("/activation/generate", {
+      method: "POST",
+      body: JSON.stringify({ orgId, count }),
     });
   }
 }

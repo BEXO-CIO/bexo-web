@@ -51,6 +51,25 @@ export class AdminService {
     );
     const totalStorageUsed = parseInt(storageRes.rows[0].total_used || '0', 10);
 
+    // 4. Fetch aggregate billing details
+    const billingRes = await this.db.query(
+      `SELECT COALESCE(SUM(amount), 0) as total_revenue FROM payments WHERE status = 'success';`
+    );
+    const totalRevenue = parseFloat(billingRes.rows[0].total_revenue);
+
+    // 5. Fetch subscription metrics
+    const subsRes = await this.db.query(
+      `SELECT 
+         COUNT(CASE WHEN plan = 'annual' AND status = 'active' THEN 1 END) as annual_count,
+         COUNT(CASE WHEN plan = 'lifetime' AND status = 'active' THEN 1 END) as lifetime_count
+       FROM subscriptions;`
+    );
+    const activeAnnual = parseInt(subsRes.rows[0].annual_count, 10);
+    const activeLifetime = parseInt(subsRes.rows[0].lifetime_count, 10);
+
+    // Calculate MRR: annual subscriptions represent ₹999/yr. Lifetime are one-off, but let's approximate MRR as annual count * (999/12)
+    const computedMrr = Math.round(activeAnnual * (999 / 12));
+
     return {
       users: usersRes.rows,
       pagination: {
@@ -62,6 +81,10 @@ export class AdminService {
       metrics: {
         totalStorageUsedBytes: totalStorageUsed,
         totalUsersOverall: parseInt(storageRes.rows[0].total_users, 10),
+        totalRevenueOverall: totalRevenue,
+        activeAnnualSubscriptions: activeAnnual,
+        activeLifetimeSubscriptions: activeLifetime,
+        computedMrr: computedMrr,
       },
     };
   }
@@ -184,5 +207,15 @@ export class AdminService {
 
     console.log(`[AUDIT LEDGER] Admin ${adminUserId} refunded payment ${paymentIdUuid} and revoked subscription for User ${userId}`);
     return { success: true };
+  }
+
+  /**
+   * Fetches all organizations.
+   */
+  async listOrganizations() {
+    const res = await this.db.query(
+      `SELECT id, name, contact_email, plan_type FROM organizations ORDER BY name ASC;`
+    );
+    return res.rows;
   }
 }

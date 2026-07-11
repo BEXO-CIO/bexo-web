@@ -24,7 +24,34 @@ export class ProfilesService {
     return res.rows[0];
   }
 
-  async patchProfile(userId: string, data: { headline?: string; career_goal?: string; bio?: string }) {
+  async patchProfile(userId: string, data: { headline?: string; career_goal?: string; bio?: string; name?: string; dob?: string; profile_photo_asset_id?: string | null }) {
+    // 1. Update user fields (name, dob, profile_photo_asset_id) if provided
+    if (data.name !== undefined || data.dob !== undefined || data.profile_photo_asset_id !== undefined) {
+      const userFields: string[] = [];
+      const userValues: any[] = [];
+      let idx = 1;
+      
+      if (data.name !== undefined) {
+        userFields.push(`name = $${idx++}`);
+        userValues.push(data.name);
+      }
+      if (data.dob !== undefined) {
+        userFields.push(`dob = $${idx++}`);
+        userValues.push(data.dob);
+      }
+      if (data.profile_photo_asset_id !== undefined) {
+        userFields.push(`profile_photo_asset_id = $${idx++}`);
+        userValues.push(data.profile_photo_asset_id);
+      }
+      
+      userValues.push(userId);
+      await this.db.query(
+        `UPDATE users SET ${userFields.join(', ')} WHERE id = $${idx};`,
+        userValues
+      );
+    }
+
+    // 2. Update profile fields
     const fields: string[] = [];
     const values: any[] = [];
     let paramIndex = 1;

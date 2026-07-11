@@ -37,7 +37,7 @@ export type Profile = z.infer<typeof ProfileSchema>;
 export const ProfileSectionSchema = z.object({
   id: z.string().uuid(),
   profile_id: z.string().uuid(),
-  type: z.enum(['about', 'education', 'projects', 'experience', 'certificates', 'achievements', 'research', 'contact']),
+  type: z.enum(['about', 'education', 'projects', 'experience', 'certificates', 'achievements', 'research', 'contact', 'skills', 'links']),
   entries: z.array(z.record(z.any())),
   reviewed_at: z.string().datetime().nullable(),
   position: z.number().int().nonnegative(),

@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { useLocation } from 'wouter';
 import { OnboardingLayout } from '../components/OnboardingLayout';
+import { client } from '../lib/api';
 
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 const DAYS   = Array.from({ length: 31 }, (_, i) => i + 1);
@@ -11,10 +12,31 @@ const PRONOUNS = ['He/Him', 'She/Her', 'They/Them', 'He/They', 'She/They', 'Any 
 export default function Step3NameDob() {
   const [, navigate] = useLocation();
   const [form, setForm] = React.useState({ first: '', last: '', day: '', month: '', year: '', nationality: '', pronouns: '' });
+  const [loading, setLoading] = React.useState(false);
+  const [error, setError] = React.useState('');
 
   const set = (key: string, val: string) => setForm(f => ({ ...f, [key]: val }));
 
-  const isValid = form.first && form.last && form.day && form.month && form.year;
+  const isValid = form.first && form.last && form.day && form.month && form.year && !loading;
+
+  const handleSubmit = async () => {
+    if (!isValid) return;
+    setLoading(true);
+    setError('');
+    
+    const monthIndex = MONTHS.indexOf(form.month) + 1;
+    const dob = `${form.year}-${monthIndex.toString().padStart(2, '0')}-${form.day.padStart(2, '0')}`;
+    const name = `${form.first} ${form.last}`;
+    
+    try {
+      await client.patchProfile({ name, dob });
+      navigate('/step/4');
+    } catch (e: any) {
+      setError(e.message || 'Failed to save details.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const selectStyle: React.CSSProperties = {
     flex: 1,
@@ -118,13 +140,20 @@ export default function Step3NameDob() {
             </div>
           </div>
 
+          {error && (
+            <p className="text-sm font-medium text-center" style={{ color: '#E11D48' }}>
+              {error}
+            </p>
+          )}
+
           <button
-            onClick={() => navigate('/step/4')}
-            disabled={!isValid}
-            className="w-full py-3 rounded-lg font-medium text-sm"
-            style={{ backgroundColor: '#C1440E', color: 'white', opacity: isValid ? 1 : 0.5, cursor: isValid ? 'pointer' : 'not-allowed' }}
+            onClick={handleSubmit}
+            disabled={!isValid || loading}
+            className="w-full py-3 rounded-lg font-medium text-sm flex items-center justify-center gap-2"
+            style={{ backgroundColor: '#C1440E', color: 'white', opacity: (isValid && !loading) ? 1 : 0.5, cursor: (isValid && !loading) ? 'pointer' : 'not-allowed' }}
           >
-            Continue →
+            {loading && <span className="inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin-slow" />}
+            {loading ? 'Saving…' : 'Continue →'}
           </button>
         </div>
       </div>

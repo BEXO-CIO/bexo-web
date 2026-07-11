@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { useLocation } from 'wouter';
 import { OnboardingLayout } from '../components/OnboardingLayout';
+import { client } from '../lib/api';
 
 type Phase = 'empty' | 'crop' | 'done';
 
@@ -9,10 +10,14 @@ export default function Step5PhotoUpload() {
   const [phase, setPhase] = React.useState<Phase>('empty');
   const [zoom, setZoom] = React.useState(50);
   const [previewUrl, setPreviewUrl] = React.useState('');
+  const [imageFile, setImageFile] = React.useState<File | null>(null);
+  const [loading, setLoading] = React.useState(false);
+  const [error, setError] = React.useState('');
 
   const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    setImageFile(file);
     const url = URL.createObjectURL(file);
     setPreviewUrl(url);
     setPhase('crop');
@@ -22,9 +27,65 @@ export default function Step5PhotoUpload() {
     e.preventDefault();
     const file = e.dataTransfer.files[0];
     if (file && file.type.startsWith('image/')) {
+      setImageFile(file);
       const url = URL.createObjectURL(file);
       setPreviewUrl(url);
       setPhase('crop');
+    }
+  };
+
+  const handleUpload = async () => {
+    if (!imageFile) return;
+    setLoading(true);
+    setError('');
+    try {
+      // 1. Get presigned upload URL from API
+      const res = await client.request<{ uploadUrl: string, key: string, assetId: string }>("/assets/upload-url", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          filename: imageFile.name,
+          size_bytes: imageFile.size,
+          section_type: "photo",
+          kind: "image"
+        })
+      });
+
+      // 2. Upload file directly to S3/MinIO
+      const uploadRes = await fetch(res.uploadUrl, {
+        method: "PUT",
+        headers: {
+          "Content-Type": imageFile.type,
+        },
+        body: imageFile,
+      });
+
+      if (!uploadRes.ok) {
+        throw new Error('Direct upload to storage failed.');
+      }
+
+      // 3. Confirm upload metadata to API
+      await client.request("/assets/confirm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          assetId: res.assetId,
+          filename: imageFile.name,
+          size_bytes: imageFile.size,
+          section_type: "photo",
+          kind: "image",
+          s3Key: res.key
+        })
+      });
+
+      // 4. Update user's profile photo link
+      await client.patchProfile({ profile_photo_asset_id: res.assetId });
+
+      setPhase('done');
+    } catch (e: any) {
+      setError(e.message || 'Failed to upload profile photo.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -95,20 +156,28 @@ export default function Step5PhotoUpload() {
                   style={{ accentColor: '#C1440E' }}
                 />
               </div>
+              {error && (
+                <p className="text-xs text-center font-medium" style={{ color: '#E11D48' }}>
+                  {error}
+                </p>
+              )}
               <div className="flex gap-3">
                 <button
-                  onClick={() => { setPhase('empty'); setPreviewUrl(''); }}
+                  onClick={() => { setPhase('empty'); setPreviewUrl(''); setImageFile(null); setError(''); }}
+                  disabled={loading}
                   className="flex-1 py-2.5 rounded-lg text-sm font-medium"
-                  style={{ backgroundColor: '#F5EEE4', border: '1px solid #DDD0BC', color: '#5C4A35', cursor: 'pointer' }}
+                  style={{ backgroundColor: '#F5EEE4', border: '1px solid #DDD0BC', color: '#5C4A35', cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.6 : 1 }}
                 >
                   Retake
                 </button>
                 <button
-                  onClick={() => setPhase('done')}
-                  className="flex-1 py-2.5 rounded-lg text-sm font-medium"
-                  style={{ backgroundColor: '#C1440E', color: 'white', cursor: 'pointer' }}
+                  onClick={handleUpload}
+                  disabled={loading}
+                  className="flex-1 py-2.5 rounded-lg text-sm font-medium flex items-center justify-center gap-2"
+                  style={{ backgroundColor: '#C1440E', color: 'white', cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.6 : 1 }}
                 >
-                  Looks good
+                  {loading && <span className="inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin-slow" />}
+                  {loading ? 'Uploading…' : 'Looks good'}
                 </button>
               </div>
             </div>

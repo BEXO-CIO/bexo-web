@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { useLocation } from 'wouter';
 import { OnboardingLayout } from '../components/OnboardingLayout';
+import { client, API_BASE_URL } from '../lib/api';
 
 type Phase = 'idle' | 'uploading' | 'parsing' | 'done';
 
@@ -19,43 +20,110 @@ export default function Step4ResumeUpload() {
   const [parseStep, setParseStep] = React.useState(0);
   const [dragging, setDragging] = React.useState(false);
   const [fileName, setFileName] = React.useState('');
+  const [error, setError] = React.useState('');
 
-  const startUpload = (name: string) => {
-    setFileName(name);
+  const saveParsedResumeData = async (data: any) => {
+    try {
+      // 1. Update basic profile info
+      await client.patchProfile({
+        headline: data.headline,
+        career_goal: data.career_goal,
+        bio: data.bio
+      });
+
+      // 2. Iterate and save sections (education, projects, experience, certificates, achievements, research, contact)
+      if (data.sections) {
+        for (const [sectionType, entries] of Object.entries(data.sections)) {
+          await client.patchProfileSection(sectionType, { entries: entries as any[], reviewed_at: new Date().toISOString() });
+        }
+      }
+    } catch (e: any) {
+      console.error('Failed to auto-save parsed resume sections:', e.message);
+    }
+  };
+
+  const startUpload = async (file: File) => {
+    setFileName(file.name);
     setPhase('uploading');
     setUploadPct(0);
-    const iv = setInterval(() => {
+    setError('');
+
+    // Smoothly increment progress up to 90% while uploading
+    const progressInterval = setInterval(() => {
       setUploadPct(p => {
-        if (p >= 100) {
-          clearInterval(iv);
-          setPhase('parsing');
-          setParseStep(0);
-          let step = 0;
-          const ps = setInterval(() => {
-            step++;
-            setParseStep(step);
-            if (step >= PARSE_STEPS.length) {
-              clearInterval(ps);
-              setTimeout(() => setPhase('done'), 600);
-            }
-          }, 700);
-          return 100;
-        }
-        return p + 8;
+        if (p >= 90) return 90;
+        return p + 10;
       });
-    }, 80);
+    }, 150);
+
+    try {
+      const res = await client.uploadResume(file);
+      
+      clearInterval(progressInterval);
+      setUploadPct(100);
+
+      if (res.cached) {
+        // Cache hit: immediately map data and navigate to success
+        await saveParsedResumeData(res.data);
+        setPhase('done');
+      } else {
+        // Cache miss: poll via EventSource (SSE)
+        setPhase('parsing');
+        setParseStep(0);
+        let step = 0;
+        const parseInterval = setInterval(() => {
+          step = Math.min(step + 1, PARSE_STEPS.length - 1);
+          setParseStep(step);
+        }, 1000);
+
+        const eventSource = new EventSource(`${API_BASE_URL}/resume/status/${res.jobId}`);
+        
+        eventSource.onmessage = async (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            const status = data.status;
+
+            if (status === 'completed') {
+              eventSource.close();
+              clearInterval(parseInterval);
+              setParseStep(PARSE_STEPS.length - 1);
+              await saveParsedResumeData(data.result);
+              setPhase('done');
+            } else if (status === 'failed') {
+              eventSource.close();
+              clearInterval(parseInterval);
+              setError('Failed to extract resume contents.');
+              setPhase('idle');
+            }
+          } catch (err) {
+            console.error('Error parsing SSE message:', err);
+          }
+        };
+
+        eventSource.onerror = () => {
+          eventSource.close();
+          clearInterval(parseInterval);
+          setError('Connection lost during resume parsing.');
+          setPhase('idle');
+        };
+      }
+    } catch (err: any) {
+      clearInterval(progressInterval);
+      setError(err.message || 'Failed to upload resume.');
+      setPhase('idle');
+    }
   };
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setDragging(false);
     const file = e.dataTransfer.files[0];
-    if (file) startUpload(file.name);
+    if (file) startUpload(file);
   };
 
   const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) startUpload(file.name);
+    if (file) startUpload(file);
   };
 
   return (
@@ -68,6 +136,12 @@ export default function Step4ResumeUpload() {
         <p className="text-sm mb-8" style={{ color: '#9B8570' }}>
           We'll extract your education, experience, and skills automatically.
         </p>
+
+        {error && (
+          <p className="text-sm mb-4 font-medium" style={{ color: '#E11D48' }}>
+            {error}
+          </p>
+        )}
 
         {phase === 'idle' && (
           <div

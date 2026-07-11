@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { useLocation } from 'wouter';
 import { OnboardingLayout } from '../components/OnboardingLayout';
+import { client, setAccessToken } from '../lib/api';
 
 export default function Step2GoogleAuth() {
   const [, navigate] = useLocation();
@@ -8,16 +9,32 @@ export default function Step2GoogleAuth() {
   const [emailMode, setEmailMode] = React.useState(false);
   const [email, setEmail] = React.useState('');
   const [password, setPassword] = React.useState('');
+  const [error, setError] = React.useState('');
 
-  const handleGoogle = () => {
+  const handleGoogle = async () => {
     setLoading(true);
-    setTimeout(() => { setLoading(false); navigate('/step/3'); }, 1400);
+    setError('');
+    try {
+      // In local dev, we pass a mock token which is accepted by our updated backend
+      const res = await client.googleAuth('mock_google_id_token_123456');
+      setAccessToken(res.accessToken);
+      navigate('/step/3');
+    } catch (e: any) {
+      setError(e.message || 'Google authentication failed.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleEmail = (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setTimeout(() => { setLoading(false); navigate('/step/3'); }, 1000);
+    setError('');
+    // Email/password is a fallback mock flow
+    setTimeout(() => { 
+      setLoading(false); 
+      navigate('/step/3'); 
+    }, 1000);
   };
 
   const inputStyle: React.CSSProperties = {
@@ -42,6 +59,12 @@ export default function Step2GoogleAuth() {
         <p className="text-sm mb-8" style={{ color: '#9B8570' }}>
           Sign in with Google for the fastest setup, or use your email.
         </p>
+
+        {error && (
+          <p className="text-sm mb-4 font-medium" style={{ color: '#E11D48' }}>
+            {error}
+          </p>
+        )}
 
         {!emailMode ? (
           <div className="space-y-4">

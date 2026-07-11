@@ -38,4 +38,9 @@ export class AdminController {
     const adminUserId = request.user.userId;
     return this.adminService.refundPayment(adminUserId, paymentId);
   }
+
+  @Get('organizations')
+  async listOrganizations() {
+    return this.adminService.listOrganizations();
+  }
 }

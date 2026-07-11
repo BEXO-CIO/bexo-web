@@ -1,5 +1,4 @@
-import * as React from 'react';
-import { Switch, Route, useLocation, Redirect } from 'wouter';
+import { Switch, Route, Redirect } from 'wouter';
 
 // ── Step components (lazy-loaded for perf) ────────────────────────────────
 // These are the 9 onboarding screens. Each is a standalone component
