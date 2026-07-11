@@ -59,8 +59,10 @@ export default function Step8Templates() {
     navigate('/step/9');
   };
 
+  const RENDERING_BASE_URL = (import.meta.env.VITE_RENDERING_URL as string) || 'http://localhost:3000';
+
   const previewUrl = userId 
-    ? `http://localhost:3000/preview/${userId}/${selected}?theme=${selectedThemeId || ''}`
+    ? `${RENDERING_BASE_URL}/preview/${userId}/${selected}?theme=${selectedThemeId || ''}`
     : '';
 
   return (

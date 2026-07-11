@@ -68,8 +68,9 @@ export default function Step9Publish() {
     publishAndFetchStats();
   }, []);
 
+  const RENDERING_BASE_URL = (import.meta.env.VITE_RENDERING_URL as string) || 'http://localhost:3000';
   const profileUrl = handle ? `${handle}.mybexo.com` : 'loading...';
-  const renderUrl = handle ? `http://localhost:3000/${handle}` : '#';
+  const renderUrl = handle ? `${RENDERING_BASE_URL}/${handle}` : '#';
 
   const handleCopy = async () => {
     if (!handle) return;

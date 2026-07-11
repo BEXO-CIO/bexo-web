@@ -171,7 +171,7 @@ export class ProfilesService {
     if (existCheck.rows.length > 0) {
       const existing = existCheck.rows[0];
       if (!handle) handle = existing.handle;
-      if (!templateId) templateId = existing.selected_template_id || 'editorial';
+      if (!templateId) templateId = existing.selected_template_id || 'minimal';
       if (!themeId) themeId = existing.selected_theme_id;
     }
 
@@ -217,7 +217,7 @@ export class ProfilesService {
     }
 
     if (!templateId) {
-      templateId = 'editorial';
+      templateId = 'minimal';
     }
 
     const now = new Date();
