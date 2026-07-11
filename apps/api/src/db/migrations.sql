@@ -56,6 +56,7 @@ CREATE TABLE IF NOT EXISTS assets (
 );
 
 -- Circular reference constraint on users
+ALTER TABLE users DROP CONSTRAINT IF EXISTS fk_profile_photo;
 ALTER TABLE users ADD CONSTRAINT fk_profile_photo FOREIGN KEY (profile_photo_asset_id) REFERENCES assets(id) ON DELETE SET NULL;
 
 -- 5. entry_links
@@ -129,12 +130,13 @@ CREATE TABLE IF NOT EXISTS domain_mappings (
 );
 
 -- Add domain mapping reference to portfolios
+ALTER TABLE portfolios DROP CONSTRAINT IF EXISTS fk_portfolio_domain;
 ALTER TABLE portfolios ADD CONSTRAINT fk_portfolio_domain FOREIGN KEY (domain_id) REFERENCES domain_mappings(id) ON DELETE SET NULL;
 
 -- 12. subscriptions
 CREATE TABLE IF NOT EXISTS subscriptions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    user_id UUID UNIQUE NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     source VARCHAR(50) NOT NULL, -- 'activation_key', 'purchase'
     plan VARCHAR(50) NOT NULL, -- 'annual', 'lifetime'
     razorpay_sub_id VARCHAR(255),
@@ -169,3 +171,14 @@ CREATE INDEX IF NOT EXISTS idx_assets_user_id ON assets(user_id);
 CREATE INDEX IF NOT EXISTS idx_activation_keys_code ON activation_keys(code);
 CREATE INDEX IF NOT EXISTS idx_portfolios_handle ON portfolios(handle);
 CREATE INDEX IF NOT EXISTS idx_analytics_events_portfolio ON analytics_events(portfolio_id);
+
+-- 15. audit_logs
+CREATE TABLE IF NOT EXISTS audit_logs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    admin_user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    action VARCHAR(255) NOT NULL,
+    target_id VARCHAR(255),
+    details JSONB,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_admin ON audit_logs(admin_user_id);
