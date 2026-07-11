@@ -10,9 +10,21 @@ import { ActivationModule } from './modules/activation/activation.module';
 import { BillingModule } from './modules/billing/billing.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { AdminModule } from './modules/admin/admin.module';
+import { DbModule } from './db/db.module';
 
 @Module({
-  imports: [AuthModule, ProfilesModule, ParserModule, AssetsModule, TemplatesModule, ActivationModule, BillingModule, NotificationsModule, AdminModule],
+  imports: [
+    DbModule,
+    AuthModule,
+    ProfilesModule,
+    ParserModule,
+    AssetsModule,
+    TemplatesModule,
+    ActivationModule,
+    BillingModule,
+    NotificationsModule,
+    AdminModule,
+  ],
   controllers: [AppController],
   providers: [AppService],
 })

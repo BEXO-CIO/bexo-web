@@ -1,0 +1,4 @@
+
+> @bexo/api@1.0.0 typecheck /Users/kavin/Documents/BEXO/bexo-web/apps/api
+> tsc --noEmit
+
