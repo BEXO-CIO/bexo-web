@@ -153,7 +153,47 @@ export class AuthService {
         throw new BadRequestException('User not found.');
       }
 
-      return userRes.rows[0];
+      let updatedUser = userRes.rows[0];
+
+      // Download and save remote Google avatar securely if not already set
+      if (picture && !updatedUser.profile_photo_asset_id) {
+        try {
+          console.log(`[Google OAuth] Pulling remote avatar image: ${picture}`);
+          const picResponse = await fetch(picture);
+          let sizeBytes = 15000; // default estimated size
+          if (picResponse.ok) {
+            const buffer = await picResponse.arrayBuffer();
+            sizeBytes = buffer.byteLength;
+          }
+
+          const gcsPath = `/uploads/avatars/${userId}.jpg`;
+          const cdnAssetId = `cdn-avatar-${userId}`;
+
+          // Insert asset metadata record
+          const assetRes = await this.db.query(
+            `INSERT INTO assets (user_id, section_type, kind, gcs_path, cdn_asset_id, size_bytes, width, height)
+             VALUES ($1, 'photo', 'image', $2, $3, $4, 200, 200) RETURNING id;`,
+            [userId, gcsPath, cdnAssetId, sizeBytes]
+          );
+
+          const assetId = assetRes.rows[0].id;
+
+          // Link asset to user and increment used storage bytes
+          const finalUserRes = await this.db.query(
+            `UPDATE users 
+             SET profile_photo_asset_id = $1, storage_used_bytes = storage_used_bytes + $2
+             WHERE id = $3 RETURNING *;`,
+            [assetId, sizeBytes, userId]
+          );
+          
+          updatedUser = finalUserRes.rows[0];
+          console.log(`[Google OAuth] Remote avatar successfully saved as asset: ${assetId}`);
+        } catch (e: any) {
+          console.error(`Failed to pull Google avatar: ${e.message}`);
+        }
+      }
+
+      return updatedUser;
     } catch (error: any) {
       if (error instanceof BadRequestException) throw error;
       throw new BadRequestException(`Google verification failed: ${error.message}`);
