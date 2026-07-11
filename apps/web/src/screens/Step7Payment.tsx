@@ -121,7 +121,7 @@ export default function Step7Payment() {
     setLoading(true);
     setError('');
     try {
-      await client.request('/billing/dev-confirm', { method: 'POST', body: '{}' });
+      await client.request('/billing/_dev/mock-confirm', { method: 'POST', body: '{}' });
       // Poll immediately to trigger state redirect
       setPolling(true);
     } catch (err: any) {

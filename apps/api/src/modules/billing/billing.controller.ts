@@ -1,6 +1,7 @@
-import { Controller, Get, Post, Body, Req, UseGuards, BadRequestException, HttpCode, HttpStatus } from '@nestjs/common';
+import { Controller, Get, Post, Body, Req, UseGuards, BadRequestException, HttpCode, HttpStatus, ForbiddenException } from '@nestjs/common';
 import { BillingService } from './billing.service';
 import { JwtGuard } from '../auth/jwt.guard';
+import { AdminGuard } from '../admin/admin.guard';
 
 @Controller('billing')
 export class BillingController {
@@ -27,10 +28,13 @@ export class BillingController {
     return this.billingService.createCheckoutOrder(userId, plan);
   }
 
-  @Post('dev-confirm')
-  @UseGuards(JwtGuard)
+  @Post('_dev/mock-confirm')
+  @UseGuards(JwtGuard, AdminGuard)
   @HttpCode(HttpStatus.OK)
   async devConfirm(@Req() request: any) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new ForbiddenException('This endpoint is not available in production.');
+    }
     const userId = request.user.userId;
     // Simple direct update for local dev convenience
     await this.billingService.db.query(
